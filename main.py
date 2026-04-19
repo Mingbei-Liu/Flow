@@ -61,7 +61,6 @@ def create_color_dictionary(information):
             color_dictionary[tuple(info[0])] = len(color_dictionary)
     return color_dictionary, len(color_dictionary)
 
-# Now we model the problem as a multi-commodity flow problem and solve it using linear programming.
 def create_V_and_E(num_rows, num_cols):
     V = [(i,j,k) for i in range(num_rows) for j in range(num_cols) for k in ["in", "out"]]
     E = []
@@ -95,7 +94,7 @@ def get_sources_and_sinks(information, color_dictionary):
             color_to_coordinate_sink[color_index] = (row_index, col_index, "out")
     return color_to_coordinate_source, color_to_coordinate_sink
 
-def connectivity_solver(num_colors, information, color_dictionary, print=False):
+def connectivity_solver(num_rows, num_cols, num_colors, information, color_dictionary, print=False):
     model = pulp.LpProblem("3D_Index_Variables", pulp.LpMaximize)
 
     # Create Sets to index the decision variables
@@ -153,6 +152,7 @@ def connectivity_solver(num_colors, information, color_dictionary, print=False):
 
     return x
 
+# Now we model the problem as a multi-commodity flow problem and solve it using linear programming.
 def multi_commodity_flow_solver(num_colors, information, color_dictionary, print=False):
     model_mcp = pulp.LpProblem("mcp", pulp.LpMaximize)
 
@@ -354,7 +354,7 @@ def pipeline(img, num_rows, num_cols, solver, debug=False):
     information = fetch_information(img, num_rows, num_cols)
     color_dictionary, num_colors = create_color_dictionary(information)
     if solver == "connectivity":
-        x = connectivity_solver(num_colors, information, color_dictionary)
+        x = connectivity_solver(num_rows, num_cols, num_colors, information, color_dictionary)
         solution_grids = get_solution_x(x, num_colors)
     else:
         f = multi_commodity_flow_solver(num_colors, information, color_dictionary)
