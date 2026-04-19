@@ -13,7 +13,7 @@ def load_img(impath):
     
     return img_loaded
 
-image_name = "irregular"
+image_name = "warp_solved"
 img = load_img(f"{image_name}.png")
 
 height, width, _ = img.shape
