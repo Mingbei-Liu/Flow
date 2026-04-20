@@ -94,7 +94,7 @@ def get_sources_and_sinks(information, color_dictionary):
             color_to_coordinate_sink[color_index] = (row_index, col_index, "out")
     return color_to_coordinate_source, color_to_coordinate_sink
 
-def connectivity_solver(num_rows, num_cols, num_colors, information, color_dictionary, print=False):
+def connectivity_solver(num_rows, num_cols, num_colors, information, color_dictionary, print=True):
     model = pulp.LpProblem("3D_Index_Variables", pulp.LpMaximize)
 
     # Create Sets to index the decision variables
@@ -196,7 +196,7 @@ def multi_commodity_flow_solver(num_colors, information, color_dictionary, print
     
     return f
 
-def get_solution_x(x, num_colors):
+def get_solution_x(x, num_rows, num_cols, num_colors):
     solution_grids = [np.zeros((num_rows, num_cols), dtype=int) for _ in range(num_colors)]
     for color in range(num_colors):
         for row in range(num_rows):
@@ -221,7 +221,7 @@ def get_solution_f(f, num_colors):
                 solution_grid[color][row2, col2] = 1
     return solution_grid
 
-def create_visualization(img, solution_grids, color_dictionary, color, information, half_width=10):
+def create_visualization(img, solution_grids, color_dictionary, color, information, num_rows, num_cols, half_width=10):
 
     rgb_to_use = (0, 0, 0)
     for color_tuple, color_index in color_dictionary.items():
@@ -307,10 +307,10 @@ def create_visualization(img, solution_grids, color_dictionary, color, informati
     
     return cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
-def create_visualization_for_all_colors(img, solution_grids, color_dictionary, num_colors, information, half_width=10):
+def create_visualization_for_all_colors(img, solution_grids, color_dictionary, num_colors, information,  num_rows, num_cols, half_width=10):
     img_copy = img.copy()
     for color in range(num_colors):
-        img_copy = create_visualization(img_copy, solution_grids, color_dictionary, color, information, half_width)
+        img_copy = create_visualization(img_copy, solution_grids, color_dictionary, color, information,  num_rows, num_cols, half_width=10)
         img_copy = cv2.cvtColor(img_copy, cv2.COLOR_BGR2RGB)
 
     return cv2.cvtColor(img_copy, cv2.COLOR_RGB2BGR)
@@ -370,11 +370,11 @@ def pipeline(img, num_rows, num_cols, solver, debug=False):
 
 if __name__ == "__main__":
 
-    img = load_img("example_5.png")
-    num_rows = 14
-    num_cols = 14
+    img = load_img("examples/example_6.png")
+    num_rows = 15
+    num_cols = 9
     solver = "connectivity"
-    solver = "mcp"
+    # solver = "mcp"
 
     visualization = pipeline(img, num_rows, num_cols, solver, debug=False)
     cv2.imshow("Visualization", visualization)

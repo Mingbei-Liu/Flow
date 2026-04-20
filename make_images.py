@@ -13,7 +13,7 @@ def load_img(impath):
     
     return img_loaded
 
-image_name = "warp_solved"
+image_name = "p2_solved"
 img = load_img(f"{image_name}.png")
 
 height, width, _ = img.shape
@@ -21,7 +21,7 @@ for row in range(height):
     for col in range(width):
         rgb_tuple = tuple(img[row, col])
         distance = np.linalg.norm(np.array(rgb_tuple))
-        if distance < 100:
+        if distance < 130:
             img[row, col] = [255, 255, 255]
 
 cv2.imwrite(f"processed_images/{image_name}_processed.png", img)
