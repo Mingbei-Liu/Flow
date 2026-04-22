@@ -153,7 +153,7 @@ def connectivity_solver(num_rows, num_cols, num_colors, information, color_dicti
     return x
 
 # Now we model the problem as a multi-commodity flow problem and solve it using linear programming.
-def multi_commodity_flow_solver(num_colors, information, color_dictionary, print=False):
+def multi_commodity_flow_solver(num_rows, num_cols, num_colors, information, color_dictionary, print=True):
     model_mcp = pulp.LpProblem("mcp", pulp.LpMaximize)
 
     # Create Sets to index the decision variables
@@ -162,7 +162,7 @@ def multi_commodity_flow_solver(num_colors, information, color_dictionary, print
     VERTICES, EDGES = create_V_and_E(num_rows, num_cols)
 
     # # Decision variables 
-    f = pulp.LpVariable.dicts("x", ((color, u, v) for color in COLOR for (u, v) in EDGES), cat="Binary")
+    f = pulp.LpVariable.dicts("x", ((u, v, color) for color in COLOR for (u, v) in EDGES), cat="Binary")
 
     # # Objective function: null objective
     model_mcp += 0
@@ -171,7 +171,7 @@ def multi_commodity_flow_solver(num_colors, information, color_dictionary, print
 
     # Each edge can only be used by at most one color
     for (u, v) in EDGES:
-        model_mcp += pulp.lpSum(f[k, u, v] for k in COLOR) <= 1
+        model_mcp += pulp.lpSum(f[u, v, k] for k in COLOR) <= 1
 
     # Flow conservation
     for k in COLOR:
@@ -179,8 +179,8 @@ def multi_commodity_flow_solver(num_colors, information, color_dictionary, print
         source_vertex = color_to_coordinate_source[k]
         sink_vertex = color_to_coordinate_sink[k]
         for v in VERTICES:
-            incoming_flow = pulp.lpSum(f[k, u, v2] for (u, v2) in EDGES if v2 == v)
-            outgoing_flow = pulp.lpSum(f[k, v2, w] for (v2, w) in EDGES if v2 == v)
+            incoming_flow = pulp.lpSum(f[u, v2, k] for (u, v2) in EDGES if v2 == v)
+            outgoing_flow = pulp.lpSum(f[v2, w, k] for (v2, w) in EDGES if v2 == v)
 
             if v == source_vertex:
                 model_mcp += outgoing_flow - incoming_flow == 1
@@ -205,13 +205,13 @@ def get_solution_x(x, num_rows, num_cols, num_colors):
                     solution_grids[color][row, col] = 1
     return solution_grids
 
-def get_solution_f(f, num_colors):
+def get_solution_f(f, num_rows, num_cols, num_colors):
     solution_grid = [np.zeros((num_rows, num_cols), dtype=int) for _ in range(num_colors)]
 
     _, EDGES = create_V_and_E(num_rows, num_cols)
     for (u, v) in EDGES:
         for color in range(num_colors):
-            if f[color, u, v].varValue == 1:
+            if f[u, v, color].varValue == 1:
                 row = u[0]
                 col = u[1]
                 solution_grid[color][row, col] = 1
