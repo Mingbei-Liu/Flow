@@ -61,7 +61,6 @@ def create_color_dictionary(information):
             color_dictionary[tuple(info[0])] = len(color_dictionary)
     return color_dictionary, len(color_dictionary)
 
-# Now we model the problem as a multi-commodity flow problem and solve it using linear programming.
 def create_V_and_E(num_rows, num_cols):
     V = [(i,j,k) for i in range(num_rows) for j in range(num_cols) for k in ["in", "out"]]
     E = []
@@ -95,7 +94,7 @@ def get_sources_and_sinks(information, color_dictionary):
             color_to_coordinate_sink[color_index] = (row_index, col_index, "out")
     return color_to_coordinate_source, color_to_coordinate_sink
 
-def connectivity_solver(num_colors, information, color_dictionary, print=True):
+def connectivity_solver(num_rows, num_cols, num_colors, information, color_dictionary, print=True):
     model = pulp.LpProblem("3D_Index_Variables", pulp.LpMaximize)
 
     # Create Sets to index the decision variables
@@ -153,7 +152,8 @@ def connectivity_solver(num_colors, information, color_dictionary, print=True):
 
     return x
 
-def multi_commodity_flow_solver(num_colors, information, color_dictionary, print=False):
+# Now we model the problem as a multi-commodity flow problem and solve it using linear programming.
+def multi_commodity_flow_solver(num_rows, num_cols, num_colors, information, color_dictionary, print=True):
     model_mcp = pulp.LpProblem("mcp", pulp.LpMaximize)
 
     # Create Sets to index the decision variables
@@ -162,7 +162,7 @@ def multi_commodity_flow_solver(num_colors, information, color_dictionary, print
     VERTICES, EDGES = create_V_and_E(num_rows, num_cols)
 
     # # Decision variables 
-    f = pulp.LpVariable.dicts("x", ((color, u, v) for color in COLOR for (u, v) in EDGES), cat="Binary")
+    f = pulp.LpVariable.dicts("x", ((u, v, color) for color in COLOR for (u, v) in EDGES), cat="Binary")
 
     # # Objective function: null objective
     model_mcp += 0
@@ -171,7 +171,7 @@ def multi_commodity_flow_solver(num_colors, information, color_dictionary, print
 
     # Each edge can only be used by at most one color
     for (u, v) in EDGES:
-        model_mcp += pulp.lpSum(f[k, u, v] for k in COLOR) <= 1
+        model_mcp += pulp.lpSum(f[u, v, k] for k in COLOR) <= 1
 
     # Flow conservation
     for k in COLOR:
@@ -179,8 +179,8 @@ def multi_commodity_flow_solver(num_colors, information, color_dictionary, print
         source_vertex = color_to_coordinate_source[k]
         sink_vertex = color_to_coordinate_sink[k]
         for v in VERTICES:
-            incoming_flow = pulp.lpSum(f[k, u, v2] for (u, v2) in EDGES if v2 == v)
-            outgoing_flow = pulp.lpSum(f[k, v2, w] for (v2, w) in EDGES if v2 == v)
+            incoming_flow = pulp.lpSum(f[u, v2, k] for (u, v2) in EDGES if v2 == v)
+            outgoing_flow = pulp.lpSum(f[v2, w, k] for (v2, w) in EDGES if v2 == v)
 
             if v == source_vertex:
                 model_mcp += outgoing_flow - incoming_flow == 1
@@ -196,7 +196,7 @@ def multi_commodity_flow_solver(num_colors, information, color_dictionary, print
     
     return f
 
-def get_solution_x(x, num_colors):
+def get_solution_x(x, num_rows, num_cols, num_colors):
     solution_grids = [np.zeros((num_rows, num_cols), dtype=int) for _ in range(num_colors)]
     for color in range(num_colors):
         for row in range(num_rows):
@@ -205,13 +205,13 @@ def get_solution_x(x, num_colors):
                     solution_grids[color][row, col] = 1
     return solution_grids
 
-def get_solution_f(f, num_colors):
+def get_solution_f(f, num_rows, num_cols, num_colors):
     solution_grid = [np.zeros((num_rows, num_cols), dtype=int) for _ in range(num_colors)]
 
     _, EDGES = create_V_and_E(num_rows, num_cols)
     for (u, v) in EDGES:
         for color in range(num_colors):
-            if f[color, u, v].varValue == 1:
+            if f[u, v, color].varValue == 1:
                 row = u[0]
                 col = u[1]
                 solution_grid[color][row, col] = 1
@@ -221,7 +221,7 @@ def get_solution_f(f, num_colors):
                 solution_grid[color][row2, col2] = 1
     return solution_grid
 
-def create_visualization(img, solution_grids, color_dictionary, color, information, half_width=10):
+def create_visualization(img, solution_grids, color_dictionary, color, information, num_rows, num_cols, half_width=10):
 
     rgb_to_use = (0, 0, 0)
     for color_tuple, color_index in color_dictionary.items():
@@ -307,10 +307,10 @@ def create_visualization(img, solution_grids, color_dictionary, color, informati
     
     return cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
-def create_visualization_for_all_colors(img, solution_grids, color_dictionary, num_colors, information, half_width=10):
+def create_visualization_for_all_colors(img, solution_grids, color_dictionary, num_colors, information,  num_rows, num_cols, half_width=10):
     img_copy = img.copy()
     for color in range(num_colors):
-        img_copy = create_visualization(img_copy, solution_grids, color_dictionary, color, information, half_width)
+        img_copy = create_visualization(img_copy, solution_grids, color_dictionary, color, information,  num_rows, num_cols, half_width=10)
         img_copy = cv2.cvtColor(img_copy, cv2.COLOR_BGR2RGB)
 
     return cv2.cvtColor(img_copy, cv2.COLOR_RGB2BGR)
@@ -354,7 +354,7 @@ def pipeline(img, num_rows, num_cols, solver, debug=False):
     information = fetch_information(img, num_rows, num_cols)
     color_dictionary, num_colors = create_color_dictionary(information)
     if solver == "connectivity":
-        x = connectivity_solver(num_colors, information, color_dictionary)
+        x = connectivity_solver(num_rows, num_cols, num_colors, information, color_dictionary)
         solution_grids = get_solution_x(x, num_colors)
     else:
         f = multi_commodity_flow_solver(num_colors, information, color_dictionary)
@@ -370,9 +370,9 @@ def pipeline(img, num_rows, num_cols, solver, debug=False):
 
 if __name__ == "__main__":
 
-    img = load_img("example_7.png")
-    num_rows = 18
-    num_cols = 15
+    img = load_img("examples/example_6.png")
+    num_rows = 15
+    num_cols = 9
     solver = "connectivity"
     # solver = "mcp"
 

@@ -13,7 +13,7 @@ def load_img(impath):
     
     return img_loaded
 
-image_name = "0_and_1"
+image_name = "bridges"
 img = load_img(f"{image_name}.png")
 
 height, width, _ = img.shape
